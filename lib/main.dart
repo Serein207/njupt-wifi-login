@@ -101,14 +101,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _login() async {
     // 检测是否连接到WiFi
-    final connectivityResult = await Connectivity().checkConnectivity();
-    if (!connectivityResult.contains(ConnectivityResult.wifi)) {
-      setState(() {
-        _statusMessage = "未连接到WiFi";
-      });
-      showToast(_statusMessage);
-      return;
-    }
+    // final connectivityResult = await Connectivity().checkConnectivity();
+    // if (!connectivityResult.contains(ConnectivityResult.wifi)) {
+    //   setState(() {
+    //     _statusMessage = "未连接到WiFi";
+    //   });
+    //   showToast(_statusMessage);
+    //   return;
+    // }
 
     final username = _usernameController.text;
     final password = _passwordController.text;
