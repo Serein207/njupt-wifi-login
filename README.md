@@ -1,16 +1,9 @@
-# njupt_wifi_login
+# NJUPT WiFi Login
 
-A new Flutter project.
+由于害怕OS的系统版本更新，导致本人无法校园网认证界面无法使用密码存储功能，加上目前并没有移动平台的校园网登录工具，于是本人决定自己实现校园网一键登录
 
-## Getting Started
+功能如图所示
 
-This project is a starting point for a Flutter application.
+![img](img/screen.jpg)
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+伟大，无需多言
