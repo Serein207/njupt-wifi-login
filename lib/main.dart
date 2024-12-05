@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
@@ -6,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
 
 void main() async {
   runApp(const MyApp());
@@ -89,12 +89,17 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<String?> _getLocalIp() async {
-    for (var interface in await NetworkInterface.list()) {
-      for (var addr in interface.addresses) {
-        if (addr.type == InternetAddressType.IPv4) {
-          return addr.address; // 返回 IPv4 地址
+    try {
+      final response =
+          await http.get(Uri.parse('https://p.njupt.edu.cn/a79.htm'));
+      if (response.statusCode == 200) {
+        final ipMatch = RegExp(r"v46ip=\'(.*?)\'").firstMatch(response.body);
+        if (ipMatch != null) {
+          return ipMatch.group(1);
         }
       }
+    } catch (e) {
+      print("获取本机IP失败: $e");
     }
     return null;
   }
@@ -114,7 +119,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final username = _usernameController.text;
     final password = _passwordController.text;
 
-    await _bindToWifi();
+    if (Platform.isAndroid) await _bindToWifi();
 
     if (username.isEmpty || password.isEmpty) {
       setState(() {
@@ -143,17 +148,30 @@ class _LoginScreenState extends State<LoginScreen> {
 
     print("IP: $ip");
 
-    // 构造目标URL
-    final loginUrl =
-        "https://10.10.244.11:802/eportal/portal/login/?callback=dr1003&login_method=1&"
-        "user_account=$formattedAccount&user_password=$password&wlan_user_ip=$ip&"
-        "wlan_user_ipv6=&wlan_user_mac=000000000000&wlan_ac_ip=&wlan_ac_name=&jsVersion=4.1.3&terminal_type=1&v=3576&lang=en";
+    final params = {
+      "callback": "dr1003",
+      "user_account": formattedAccount,
+      "user_password": password,
+      "wlan_user_ip": ip,
+      "wlan_user_ipv6": "",
+      "wlan_user_mac": "000000000000",
+      "wlan_ac_ip": "",
+      "wlan_ac_name": "",
+      "jsVersion": "4.1.3",
+      "terminal_type": "1",
+      "lang": "en",
+      "v": "3335",
+    };
+    // final loginUrl =
+    //     "https://10.10.244.11:802/eportal/portal/login?callback=dr1003&login_method=1&"
+    //     "user_account=$formattedAccount&user_password=$password&wlan_user_ip=$ip&"
+    //     "wlan_user_ipv6=&wlan_user_mac=000000000000&wlan_ac_ip=&wlan_ac_name=&jsVersion=4.1.3&terminal_type=1&lang=zh-cn&v=3335&lang=zh";
 
     // 设置请求头
     final headers = {
       "Accept": "*/*",
-      "Accept-Encoding": "gzip, deflate",
-      "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6",
+      "Accept-Encoding": "gzip, deflate, br, zstd",
+      "Accept-Language": "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7",
       "Cache-Control": "max-age=0",
       "Connection": "keep-alive",
       "Content-Type": "application/x-www-form-urlencoded",
@@ -165,32 +183,36 @@ class _LoginScreenState extends State<LoginScreen> {
     };
 
     try {
-      final httpClient = HttpClient()
-        ..badCertificateCallback =
-            (X509Certificate cert, String host, int port) => true;
-
-      final request = await httpClient.getUrl(Uri.parse(loginUrl));
-      headers.forEach((key, value) {
-        request.headers.set(key, value);
-      });
-      final response = await request.close();
-      print("response ok");
+      print(params);
+      final response = await http.get(
+        Uri.https("p.njupt.edu.cn:802", "/eportal/portal/login", params),
+        headers: headers,
+      );
 
       if (response.statusCode == 200) {
-        final responseBody = await response.transform(utf8.decoder).join();
+        print(response.body);
+
         setState(() {
           final errorPromptMatch =
-              RegExp(r'"msg": "(.*?)"').firstMatch(responseBody);
+              RegExp(r'"result":(.*?),"msg":"(.*?)"').firstMatch(response.body);
           if (errorPromptMatch != null) {
-            _statusMessage = errorPromptMatch.group(1) ?? "未知错误";
+            if (errorPromptMatch.group(1) == "1") {
+              _statusMessage = "登录成功";
+            } else {
+              final errorMsg = errorPromptMatch.group(2) ?? "未知错误";
+              if (errorMsg == "AC999") {
+                _statusMessage = "已经登录过啦";
+              } else {
+                _statusMessage = "登录失败: $errorMsg";
+              }
+            }
           } else {
-            _statusMessage = "登录成功";
+            _statusMessage = "未知错误";
           }
-          _statusMessage = "登录成功";
         });
       } else {
         setState(() {
-          _statusMessage = "登录失败，服务器错误";
+          _statusMessage = "${response.statusCode}: 登录失败";
         });
       }
     } catch (e) {
