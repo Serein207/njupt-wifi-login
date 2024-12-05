@@ -1,6 +1,6 @@
+import 'dart:convert';
 import 'dart:io';
 
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -99,19 +99,22 @@ class _LoginScreenState extends State<LoginScreen> {
     return null;
   }
 
-  Future<void> _login() async {
-    // 检测是否连接到WiFi
-    // final connectivityResult = await Connectivity().checkConnectivity();
-    // if (!connectivityResult.contains(ConnectivityResult.wifi)) {
-    //   setState(() {
-    //     _statusMessage = "未连接到WiFi";
-    //   });
-    //   showToast(_statusMessage);
-    //   return;
-    // }
+  static const MethodChannel _channel = MethodChannel('network_binder');
 
+  static Future<void> _bindToWifi() async {
+    try {
+      await _channel.invokeMethod('bindToWifi');
+      print("已绑定到 WiFi 网络");
+    } catch (e) {
+      print("绑定 WiFi 网络失败: $e");
+    }
+  }
+
+  Future<void> _login() async {
     final username = _usernameController.text;
     final password = _passwordController.text;
+
+    await _bindToWifi();
 
     if (username.isEmpty || password.isEmpty) {
       setState(() {
@@ -165,6 +168,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final httpClient = HttpClient()
         ..badCertificateCallback =
             (X509Certificate cert, String host, int port) => true;
+
       final request = await httpClient.getUrl(Uri.parse(loginUrl));
       headers.forEach((key, value) {
         request.headers.set(key, value);
@@ -173,7 +177,15 @@ class _LoginScreenState extends State<LoginScreen> {
       print("response ok");
 
       if (response.statusCode == 200) {
+        final responseBody = await response.transform(utf8.decoder).join();
         setState(() {
+          final errorPromptMatch =
+              RegExp(r'msg: "(.*?)"').firstMatch(responseBody);
+          if (errorPromptMatch != null) {
+            _statusMessage = errorPromptMatch.group(1) ?? "未知错误";
+          } else {
+            _statusMessage = "登录成功";
+          }
           _statusMessage = "登录成功";
         });
       } else {
