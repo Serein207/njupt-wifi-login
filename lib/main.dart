@@ -180,7 +180,7 @@ class _LoginScreenState extends State<LoginScreen> {
         final responseBody = await response.transform(utf8.decoder).join();
         setState(() {
           final errorPromptMatch =
-              RegExp(r'msg: "(.*?)"').firstMatch(responseBody);
+              RegExp(r'"msg": "(.*?)"').firstMatch(responseBody);
           if (errorPromptMatch != null) {
             _statusMessage = errorPromptMatch.group(1) ?? "未知错误";
           } else {
